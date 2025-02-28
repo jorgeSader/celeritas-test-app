@@ -1,7 +1,11 @@
 BINARY_NAME=celeritasApp
 
-build:
+update:
+		@echo "Updating Vendors..."
 		@go get github.com/jorgeSader/celeritas
+		@echo "Vendors Updated!"
+
+build: update
 		@echo "Building Celeritas..."
 		@go build -o tmp/${BINARY_NAME} .
 		@echo "Celeritas Built!"
