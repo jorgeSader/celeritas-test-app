@@ -9,5 +9,5 @@ require (
 	github.com/CloudyKit/jet/v6 v6.3.1 // indirect
 	github.com/go-chi/chi/v5 v5.2.1 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
-	github.com/jorgeSader/celeritas v0.0.0-20250228073751-c86d89def78f // indirect
+	github.com/jorgeSader/celeritas v0.0.0-20250228145926-2a98c325bdf3 // indirect
 )

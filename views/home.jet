@@ -2,20 +2,28 @@
 {{block css()}}
 {{end}}
 
-{{block browserTitle()}}Jet template{{end}}
+{{block browserTitle()}}Welcome{{end}}
 
 {{block pageContent()}}
 
-  <div class="col text-center">
-      <div class="d-flex align-items-center justify-content-center" style="height: 100vh;">
-          <div>
-              <img src="/public/images/celeritas.jpg" class="mb-5" style="width: 100px;height:auto;">
-              <h1>Celeritas (Jet Templates)</h1>
-              <hr>
-              <small class="text-muted">Go build something awesome</small>
-          </div>
-      </div>
-  </div>
+    <div class="col text-center">
+        <div class="d-flex align-items-center justify-content-center mt-5" ">
+            <div>
+                <img src="/public/images/celeritas.jpg" class="mb-5" style="width: 100px;height:auto;">
+                <h1>Celeritas</h1>
+                <hr>
+                <small class="text-muted">Go build something awesome</small>
+            </div>
+        </div>
+        <hr>
+        <h3>Things to  try</h3>
+        <div class="list-group">
+            <a href="/go-page" class="list-group-item list-group-item-action">Render a Go Template</a>
+            <a href="/jet-page" class="list-group-item list-group-item-action">Render a Jet Template</a>
+            <a href="/sessions" class="list-group-item list-group-item-action">Try sessions</a>
+        </div>
+        </div>
+    </div>
 
 {{end}}
 
