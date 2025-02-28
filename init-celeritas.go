@@ -2,8 +2,9 @@ package main
 
 import (
 	"log"
-	"myappgithub.com/jorgeSader/celeritas-test-app/handlers"
 	"os"
+
+	"github.com/jorgeSader/celeritas-test-app/handlers"
 
 	"github.com/jorgeSader/celeritas"
 )
