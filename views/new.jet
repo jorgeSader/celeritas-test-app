@@ -1,0 +1,10 @@
+{{extends "./layouts/base.jet"}}
+{{block css()}}
+{{end}}
+
+{{block pageContent()}}
+
+{{end}}
+
+{{block js()}}
+{{end}}
