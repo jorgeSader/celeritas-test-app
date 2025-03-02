@@ -3,7 +3,7 @@ BINARY_NAME = celeritasApp
 COMPOSE_FILE = docker-compose.yml
 DB_DATA_DIR = ./db-data
 
-# Default target (start app and containers)
+# Default target
 .PHONY: all
 all: container-up start
 
@@ -27,23 +27,23 @@ run: build
 	@echo "Celeritas started!"
 
 .PHONY: clean
-clean: 
+clean:
 	@echo "Cleaning..."
 	@go clean
 	@rm -f tmp/${BINARY_NAME}
 	@echo "Cleaned!"
 
 .PHONY: test
-test: 
+test:
 	@echo "Testing..."
 	@go test ./...
 	@echo "Done!"
 
 .PHONY: start
-start: run
+start: container-up run
 
 .PHONY: stop
-stop: 
+stop:
 	@echo "Stopping Celeritas..."
 	@-pkill -SIGTERM -f "./tmp/${BINARY_NAME}"
 	@echo "Stopped Celeritas!"
@@ -56,11 +56,11 @@ restart: stop start
 .PHONY: container-setup
 container-setup:
 	@echo "Creating volume directories..."
-	mkdir -p $(DB_DATA_DIR)/postgres $(DB_DATA_DIR)/redis $(DB_DATA_DIR)/mariadb
+	mkdir -p $(DB_DATA_DIR)/postgres $(DB_DATA_DIR)/redis $(DB_DATA_DIR)/mariadb $(DB_DATA_DIR)/init-scripts
 	@echo "Setting ownership to $(USER)..."
-	chown -R $(USER):$(USER) $(DB_DATA_DIR)/postgres $(DB_DATA_DIR)/redis $(DB_DATA_DIR)/mariadb
+	sudo chown -R $(USER):$(USER) $(DB_DATA_DIR)/postgres $(DB_DATA_DIR)/redis $(DB_DATA_DIR)/mariadb $(DB_DATA_DIR)/init-scripts
 	@echo "Setting SELinux context..."
-	sudo chcon -Rt container_file_t $(DB_DATA_DIR)/postgres $(DB_DATA_DIR)/redis $(DB_DATA_DIR)/mariadb
+	sudo chcon -Rt container_file_t $(DB_DATA_DIR)/postgres $(DB_DATA_DIR)/redis $(DB_DATA_DIR)/mariadb $(DB_DATA_DIR)/init-scripts
 
 .PHONY: container-up
 container-up: container-setup
@@ -88,7 +88,7 @@ container-clean: container-down
 	@echo "Removing volume directories..."
 	sudo rm -rf $(DB_DATA_DIR)
 
-# Combined clean (app + containers)
+# Combined clean
 .PHONY: full-clean
 full-clean: clean container-clean
 	@echo "Full cleanup complete!"

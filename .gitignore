@@ -10,6 +10,7 @@
 
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
+*.diff
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
@@ -33,4 +34,4 @@ db-data/
 
 # Go build artifacts
 tmp/
-
+tmp/celeritasApp
