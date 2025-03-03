@@ -73,6 +73,10 @@ container-down:
 	podman-compose -f $(COMPOSE_FILE) down
 	podman rm -f $$(podman ps -aq) || true
 
+.PHONY: container-restart
+container-restart: stop container-down all
+	@echo "Container Restarted"
+
 .PHONY: container-ps
 container-ps:
 	@echo "Listing running containers..."
@@ -94,7 +98,11 @@ full-clean: clean container-clean
 
 
 
+
+
+##################################
 # For Dev Only
+##################################
 .PHONY: stage-all
 stage-all:
 	@echo "Staging all files..."
