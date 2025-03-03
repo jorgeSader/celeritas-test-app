@@ -7,7 +7,7 @@ replace github.com/jorgeSader/celeritas => ../celeritas
 require (
 	github.com/CloudyKit/jet/v6 v6.3.1
 	github.com/go-chi/chi/v5 v5.2.1
-	github.com/jorgeSader/celeritas v0.0.0-20250302112011-6c8e2285dd8b
+	github.com/jorgeSader/celeritas v0.0.0-20250303140820-50c7ea4a36e0
 )
 
 require (
