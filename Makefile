@@ -88,7 +88,25 @@ container-clean: container-down
 	@echo "Removing volume directories..."
 	sudo rm -rf $(DB_DATA_DIR)
 
-# Combined clean
 .PHONY: full-clean
 full-clean: clean container-clean
 	@echo "Full cleanup complete!"
+
+
+
+# For Dev Only
+.PHONY: stage-all
+stage-all:
+	@echo "Staging all files..."
+	git add .
+	@echo "All file Staged"
+
+.PHONY: diff
+diff:
+	@echo "Creating diff file..."
+	git diff --staged > changes.diff
+	@echo "Diff file Created"
+
+.PHONY: diff-all
+diff-all: stage-all diff
+	@echo "Staged all modified files and created a 'changes.diff' file."
