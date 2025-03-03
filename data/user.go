@@ -14,7 +14,7 @@ type User struct {
 	FirstName string    `db:"first_name"`   // User's first name
 	LastName  string    `db:"last_name"`    // User's last name
 	Email     string    `db:"email"`        // User's email address
-	Active    string    `db:"active"`       // User's active status (e.g., "yes" or "no")
+	Active    int       `db:"user_active"`  // User's active status (e.g., "yes" or "no")
 	Password  string    `db:"password"`     // Hashed password
 	CreatedAt time.Time `db:"created_at"`   // Timestamp of user creation
 	UpdatedAt time.Time `db:"updated_at"`   // Timestamp of last update

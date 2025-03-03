@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/jorgeSader/celeritas-test-app/data"
 	"github.com/jorgeSader/celeritas-test-app/handlers"
 
 	"github.com/jorgeSader/celeritas"
@@ -34,6 +35,8 @@ func InitApplication() *application {
 	}
 
 	app.App.Routes = app.routes()
+
+	app.Models = data.New(app.App.DB.Pool)
 
 	return app
 }
