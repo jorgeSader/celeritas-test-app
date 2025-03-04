@@ -1,3 +1,5 @@
+# Makefile for managing the Celeritas test application, including build, run, and container operations.
+
 # Variables
 BINARY_NAME = celeritasApp
 COMPOSE_FILE = docker-compose.yml
@@ -57,21 +59,22 @@ restart: stop start
 container-setup:
 	@echo "Creating volume directories..."
 	mkdir -p $(DB_DATA_DIR)/postgres $(DB_DATA_DIR)/redis $(DB_DATA_DIR)/mariadb $(DB_DATA_DIR)/init-scripts
-	@echo "Setting ownership to $(USER)..."
-	sudo chown -R $(USER):$(USER) $(DB_DATA_DIR)/postgres $(DB_DATA_DIR)/redis $(DB_DATA_DIR)/mariadb $(DB_DATA_DIR)/init-scripts
+	@echo "Setting ownership for containers..."
+	sudo chown -R 999:999 $(DB_DATA_DIR)/postgres  # Postgres runs as UID 999 in container
+	sudo chown -R $(USER):$(USER) $(DB_DATA_DIR)/redis $(DB_DATA_DIR)/mariadb $(DB_DATA_DIR)/init-scripts
 	@echo "Setting SELinux context..."
 	sudo chcon -Rt container_file_t $(DB_DATA_DIR)/postgres $(DB_DATA_DIR)/redis $(DB_DATA_DIR)/mariadb $(DB_DATA_DIR)/init-scripts
 
 .PHONY: container-up
 container-up: container-setup
 	@echo "Starting containers..."
-	podman-compose -f $(COMPOSE_FILE) up -d
+	podman-compose -f $(COMPOSE_FILE) up -d --replace
 
 .PHONY: container-down
 container-down:
 	@echo "Stopping and removing containers..."
 	podman-compose -f $(COMPOSE_FILE) down
-	podman rm -f $$(podman ps -aq) || true
+	podman ps -aq | xargs -r podman rm -f || true
 
 .PHONY: container-restart
 container-restart: stop container-down all
@@ -95,10 +98,6 @@ container-clean: container-down
 .PHONY: full-clean
 full-clean: clean container-clean
 	@echo "Full cleanup complete!"
-
-
-
-
 
 ##################################
 # For Dev Only
