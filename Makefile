@@ -68,7 +68,8 @@ container-setup:
 .PHONY: container-up
 container-up: container-setup
 	@echo "Starting containers..."
-	podman-compose -f $(COMPOSE_FILE) up -d --replace
+	-podman-compose -f $(COMPOSE_FILE) down  # Stop and remove existing containers
+	podman-compose -f $(COMPOSE_FILE) up -d  # Start fresh
 
 .PHONY: container-down
 container-down:
