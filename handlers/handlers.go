@@ -6,10 +6,12 @@ import (
 
 	"github.com/CloudyKit/jet/v6"
 	"github.com/jorgeSader/celeritas"
+	"github.com/jorgeSader/celeritas-test-app/data"
 )
 
 type Handlers struct {
-	App *celeritas.Celeritas
+	App    *celeritas.Celeritas
+	Models data.Models
 }
 
 func (h *Handlers) Home(w http.ResponseWriter, r *http.Request) {
