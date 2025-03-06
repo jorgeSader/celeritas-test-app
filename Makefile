@@ -101,10 +101,30 @@ stage-all:
 
 .PHONY: diff
 diff:
-	@echo "Creating diff file..."
-	git diff --staged > changes.diff
-	@echo "Diff file created!"
+	@echo "Copying diff to clipboard..."
+	@# Detect OS and use appropriate clipboard tool
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		git diff --staged | pbcopy; \
+		echo "Diff copied to clipboard (macOS)"; \
+	elif [ "$$(uname)" = "Linux" ]; then \
+		if command -v xclip >/dev/null 2>&1; then \
+			git diff --staged | xclip -selection clipboard; \
+			echo "Diff copied to clipboard (Linux/xclip)"; \
+		elif command -v wl-copy >/dev/null 2>&1; then \
+			git diff --staged | wl-copy; \
+			echo "Diff copied to clipboard (Linux/wl-copy)"; \
+		else \
+			echo "Error: Install xclip or wl-copy for clipboard support"; \
+			exit 1; \
+		fi; \
+	elif [ "$$(uname -o 2>/dev/null)" = "Msys" ] || [ "$$(uname -o 2>/dev/null)" = "Cygwin" ]; then \
+		git diff --staged | clip; \
+		echo "Diff copied to clipboard (Windows)"; \
+	else \
+		echo "Error: Unsupported OS for clipboard copy"; \
+		exit 1; \
+	fi
 
 .PHONY: diff-all
 diff-all: stage-all diff
-	@echo "Staged all modified files and created a 'changes.diff' file."
+	@echo "Staged all modified files and copied diff to clipboard."
