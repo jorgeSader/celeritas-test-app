@@ -1,108 +1,84 @@
-# Makefile for managing the Celeritas test application, including app and container operations.
+BINARY_NAME=celeritasApp
+BUILD_DIR=tmp
 
-# Variables
-BINARY_NAME = celeritasApp
-COMPOSE_FILE = docker-compose.yml
-DB_DATA_DIR = ./db-data
+# Build the application locally
+.PHONY: build
+build: 
+	@echo "Building ${BINARY_NAME}..."
+	@mkdir -p ${BUILD_DIR}
+	@go build -o ./${BUILD_DIR}/${BINARY_NAME} . || { echo "Build failed!"; exit 1; }
+	@echo "${BINARY_NAME} built!"
 
-# --- App-Only Targets ---
+# Run the application locally
+.PHONY: run
+run: build
+	@echo "Starting ${BINARY_NAME}..."
+	@./${BUILD_DIR}/${BINARY_NAME} &
+	@echo "${BINARY_NAME} started!"
+
+# Start the database containers using Podman Compose
+.PHONY: compose-up
+compose-up:
+	@echo "Starting DB Containers..."
+	@podman-compose up -d
+	@echo "DB Containers Started!"
+
+# Stop the database containers
+.PHONY: compose-down
+compose-down:
+	@echo "Stopping DB Containers..."
+	@podman-compose down
+	@echo "DB Containers Stopped!"
+
+# Tail the logs of the database containers
+.PHONY: compose-logs
+compose-logs:
+	@echo "Showing Logs..."
+	@podman-compose logs -f
+
+# Run the application with databases
+.PHONY: run-with-db
+run-with-db: compose-up run
+
+# Clean up
+.PHONY: clean
+clean:
+	@echo "Cleaning..."
+	@go clean
+	@rm -f ${BUILD_DIR}/${BINARY_NAME}
+	@echo "Cleaned!"
+
+# Run all tests
+.PHONY: test
+test:
+	@echo "Testing..."
+	@go test ./...
+	@echo "Done!"
+
 .PHONY: start
-start: build
-	@echo "Starting Celeritas..."
-	@./tmp/${BINARY_NAME} &
-	@echo "Celeritas started!"
+start: run
 
 .PHONY: stop
 stop:
-	@echo "Stopping Celeritas..."
-	@-pkill -SIGTERM -f "./tmp/${BINARY_NAME}"
-	@echo "Stopped Celeritas!"
-
-.PHONY: clean
-clean:
-	@echo "Cleaning app artifacts..."
-	@go clean
-	@rm -f tmp/${BINARY_NAME}
-	@echo "App cleaned!"
+	@echo "Stopping ${BINARY_NAME}..."
+	@-pkill -SIGTERM -f "./${BUILD_DIR}/${BINARY_NAME}" || true
+	@echo "Stopped ${BINARY_NAME}!"
 
 .PHONY: restart
 restart: stop start
-	@echo "Restarted Celeritas app!"
 
-# --- Container-Only Targets ---
-.PHONY: container-start
-container-start: container-setup
-	@echo "Starting containers..."
-	podman-compose -f $(COMPOSE_FILE) up -d
-
-.PHONY: container-stop
-container-stop:
-	@echo "Stopping containers..."
-	podman-compose -f $(COMPOSE_FILE) stop
-
-.PHONY: container-clean
-container-clean:
-	@echo "Cleaning containers..."
-	podman-compose -f $(COMPOSE_FILE) down
-	podman ps -aq | xargs -r podman rm -f || true
-	@echo "Containers cleaned!"
-
-.PHONY: container-restart
-container-restart: container-stop container-start
-	@echo "Restarted containers!"
-
-# --- Combined Targets (App + Containers) ---
-.PHONY: start-all
-start-all: container-start start
-	@echo "Started app and containers!"
-
-.PHONY: stop-all
-stop-all: stop container-stop
-	@echo "Stopped app and containers!"
-
-.PHONY: clean-all
-clean-all: clean container-clean
-	@echo "Cleaned app and containers!"
-
-.PHONY: restart-all
-restart-all: stop-all start-all
-	@echo "Restarted app and containers!"
-
-# --- Utility Targets ---
-.PHONY: build
-build:
-	@echo "Building Celeritas..."
-	@go build -o tmp/${BINARY_NAME} .
-	@echo "Celeritas Built!"
-
-.PHONY: container-setup
-container-setup:
-	@echo "Creating volume directories..."
-	mkdir -p $(DB_DATA_DIR)/postgres $(DB_DATA_DIR)/redis $(DB_DATA_DIR)/mariadb $(DB_DATA_DIR)/init-scripts
-	@echo "Setting ownership for containers..."
-	sudo chown -R $(USER):$(USER) $(DB_DATA_DIR)/postgres $(DB_DATA_DIR)/redis $(DB_DATA_DIR)/mariadb $(DB_DATA_DIR)/init-scripts
-	sudo chmod -R 700 $(DB_DATA_DIR)/postgres  # Ensure Postgres can write
-	@echo "Setting SELinux context..."
-	sudo chcon -Rt container_file_t $(DB_DATA_DIR)/postgres $(DB_DATA_DIR)/redis $(DB_DATA_DIR)/mariadb $(DB_DATA_DIR)/init-scripts
-
-# --- Full Wipe Target ---
-.PHONY: full-clean
-full-clean: clean-all
-	@echo "Removing volume directories..."
-	sudo rm -rf $(DB_DATA_DIR)
-	@echo "Full cleanup complete!"
-
-# --- Dev-Only Targets ---
+##################################
+# Dev-Only Targets
+##################################
 .PHONY: stage-all
 stage-all:
 	@echo "Staging all files..."
-	git add .
+	@git add .
 	@echo "All files staged!"
 
 .PHONY: diff
 diff:
 	@echo "Copying diff to clipboard..."
-	@# Detect OS and use appropriate clipboard tool
 	@if [ "$$(uname)" = "Darwin" ]; then \
 		git diff --staged | pbcopy; \
 		echo "Diff copied to clipboard (macOS)"; \
