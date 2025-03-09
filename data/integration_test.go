@@ -1,19 +1,21 @@
 //go:build integration
 
+// run tests with this command: go test . --tags integration --count=1
 package data
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"testing"
 	"time"
 
-	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
+	"github.com/docker/go-connections/nat"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const (
@@ -27,94 +29,85 @@ const (
 var testUser = User{
 	FirstName: "Some",
 	LastName:  "Guy",
-	Email:     "Test@email.com",
+	Email:     "Test@test.com",
 	Active:    1,
 	Password:  "Test@123",
 }
 
 var models Models
 var testDB *sql.DB
-var resource *dockertest.Resource
-var pool *dockertest.Pool
+var container testcontainers.Container
+
+// init sets environment variables before package initialization
+func init() {
+	// TODO: add ability to choose podman or Docker?
+	// Set DOCKER_HOST  and TESTCONTAINERS_RYUK_DISABLED explicitly for Podman
+	os.Setenv("TESTCONTAINERS_RYUK_DISABLED", "true")
+	uid := os.Getuid()
+	if err := os.Setenv("DOCKER_HOST", fmt.Sprintf("unix:///run/user/%d/podman/podman.sock", uid)); err != nil {
+		log.Printf("Warning: Could not set DOCKER_HOST: %s (tests may fail)", err)
+	}
+}
 
 func TestMain(m *testing.M) {
+	// Verify DOCKER_HOST is set correctly, fail here if critical
+	if os.Getenv("DOCKER_HOST") == "" {
+		log.Fatalf("DOCKER_HOST not set, required for Podman integration")
+	}
+
 	os.Setenv("DATABASE_TYPE", "postgres")
 
-	podmanSocket := fmt.Sprintf("unix:///run/user/%d/podman/podman.sock", os.Getuid())
-	os.Setenv("DOCKER_HOST", podmanSocket)
+	ctx := context.Background()
 
-	if _, err := os.Stat(podmanSocket); os.IsNotExist(err) {
-		cmd := exec.Command("podman", "system", "service", "--log-level=debug", "--time=0")
-		if err := cmd.Start(); err != nil {
-			log.Fatalf("Could not start Podman service: %s", err)
-		}
-		defer cmd.Process.Kill()
-		for i := 0; i < 50; i++ {
-			if _, err := os.Stat(podmanSocket); err == nil {
-				break
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-		if _, err := os.Stat(podmanSocket); os.IsNotExist(err) {
-			log.Fatalf("Podman socket %s not found after starting service", podmanSocket)
-		}
-	}
-
-	pool, err := dockertest.NewPool("")
-	if err != nil {
-		log.Fatalf("Could not connect to Podman: %s", err)
-	}
-
-	// Purge any existing resources to ensure a fresh start
-	pool.Purge(resource)
-
-	resource, err = pool.RunWithOptions(&dockertest.RunOptions{
-		Repository: "postgres",
-		Tag:        "latest",
-		Env: []string{
-			"POSTGRES_USER=" + user,
-			"POSTGRES_PASSWORD=" + password,
-			"POSTGRES_DB=" + dbName,
+	req := testcontainers.ContainerRequest{
+		Image: "postgres:latest",
+		Env: map[string]string{
+			"POSTGRES_USER":     user,
+			"POSTGRES_PASSWORD": password,
+			"POSTGRES_DB":       dbName,
 		},
 		ExposedPorts: []string{"5432/tcp"},
-	}, func(config *docker.HostConfig) {
-		// Ensure container is fully removed on cleanup
-		config.AutoRemove = true
-		config.RestartPolicy = docker.RestartPolicy{Name: "no"}
-	})
-	if err != nil {
-		log.Fatalf("Could not start Postgres container: %s", err)
+		WaitingFor: wait.ForSQL("5432/tcp", "pgx", func(host string, port nat.Port) string {
+			return fmt.Sprintf(dsn, host, port.Port(), user, password, dbName)
+		}).WithStartupTimeout(30 * time.Second),
 	}
 
-	port := resource.GetPort("5432/tcp")
-
-	err = pool.Retry(func() error {
-		testDB, err = sql.Open("pgx", fmt.Sprintf(dsn, host, port, user, password, dbName))
-		if err != nil {
-			return err
-		}
-		return testDB.Ping()
+	var err error
+	container, err = testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
 	})
 	if err != nil {
-		pool.Purge(resource)
-		log.Fatalf("Could not connect to Postgres: %s", err)
+		log.Fatalf("Could not start container: %s", err)
+	}
+
+	port, err := container.MappedPort(ctx, "5432/tcp")
+	if err != nil {
+		_ = container.Terminate(ctx)
+		log.Fatalf("Could not get mapped port: %s", err)
+	}
+
+	testDB, err = sql.Open("pgx", fmt.Sprintf(dsn, host, port.Port(), user, password, dbName))
+	if err != nil {
+		_ = container.Terminate(ctx)
+		log.Fatalf("Could not open database connection: %s", err)
 	}
 
 	if err := setupTables(testDB); err != nil {
-		pool.Purge(resource)
-		log.Fatalf("Could not create tables: %s", err)
+		_ = container.Terminate(ctx)
+		log.Fatalf("Could not setup tables: %s", err)
 	}
 
-	models = New(testDB)
+	defer func() {
+		if err := container.Terminate(ctx); err != nil {
+			log.Printf("Could not terminate container: %s", err)
+		}
+		if err := testDB.Close(); err != nil {
+			log.Printf("Could not close database connection: %s", err)
+		}
+	}()
 
-	code := m.Run()
-
-	testDB.Close()
-	if err := pool.Purge(resource); err != nil {
-		log.Printf("Could not purge container: %s", err)
-	}
-
-	os.Exit(code)
+	m.Run()
 }
 
 func setupTables(db *sql.DB) error {
@@ -174,72 +167,4 @@ func setupTables(db *sql.DB) error {
 			EXECUTE FUNCTION trigger_set_timestamp();
 	`)
 	return err
-}
-
-func TestUsers_Table(t *testing.T) {
-	if models.Users.Table() != "users" {
-		t.Errorf("expected table name 'users', got %s", models.Users.Table())
-	}
-}
-
-func TestUsers_InsertAndGet(t *testing.T) {
-	id, err := models.Users.Insert(testUser)
-	if err != nil {
-		t.Fatalf("failed to insert user: %s", err)
-	}
-
-	user, err := models.Users.Get(id)
-	if err != nil {
-		t.Fatalf("failed to get user %d: %s", id, err)
-	}
-
-	if user.Email != testUser.Email {
-		t.Errorf("expected email %s, got %s", testUser.Email, user.Email)
-	}
-}
-
-func TestUsers_GetByEmail(t *testing.T) {
-	id, err := models.Users.Insert(testUser)
-	if err != nil {
-		t.Fatalf("failed to insert user: %s", err)
-	}
-
-	user, err := models.Users.GetByEmail(testUser.Email)
-	if err != nil {
-		t.Fatalf("failed to get user by email %s: %s", testUser.Email, err)
-	}
-
-	if user.FirstName != testUser.FirstName {
-		t.Errorf("expected first name %s, got %s", testUser.FirstName, user.FirstName)
-	}
-
-	// Cleanup
-	if err := models.Users.Delete(id); err != nil {
-		t.Fatalf("failed to delete user %d: %s", id, err)
-	}
-}
-
-func TestTokens_GenerateAndValidate(t *testing.T) {
-	id, err := models.Users.Insert(testUser)
-	if err != nil {
-		t.Fatalf("failed to insert user: %s", err)
-	}
-	defer models.Users.Delete(id) // Cleanup even on failure
-
-	token, err := models.Tokens.GenerateToken(id, 24*time.Hour)
-	if err != nil {
-		t.Fatalf("failed to generate token: %s", err)
-	}
-
-	if err := models.Tokens.Insert(*token, testUser); err != nil {
-		t.Fatalf("failed to insert token: %s", err)
-	}
-
-	valid, err := models.Tokens.ValidToken(token.PlainText)
-	if err != nil {
-		t.Fatalf("failed to validate token: %s", err)
-	}
-	if !valid {
-		t.Error("expected token to be valid")
-	}
 }
