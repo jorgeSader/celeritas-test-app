@@ -1,6 +1,32 @@
 BINARY_NAME=celeritasApp
 BUILD_DIR=tmp
 
+.PHONY: help
+help:
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  build             Build the application locally"
+	@echo "  run               Run the application locally (builds first)"
+	@echo "  compose-up        Start the database containers using Podman Compose"
+	@echo "  compose-down      Stop the database containers"
+	@echo "  compose-logs      Tail the logs of the database containers"
+	@echo "  run-with-db       Run the application with databases (starts DB and app)"
+	@echo "  clean             Clean up build artifacts"
+	@echo "  test              Run all tests"
+	@echo "  coverage          Display test coverage"
+	@echo "  cover             Open coverage report in browser"
+	@echo "  start             Alias for 'run'"
+	@echo "  stop              Stop the running application"
+	@echo "  restart           Restart the application (stop then start)"
+	@echo "  stage-all         Stage all files for git commit"
+	@echo "  unstage-all       Unstage all files from git"
+	@echo "  diff-to-clipboard Copy staged git diff to clipboard"
+	@echo "  diff              Stage all, copy diff to clipboard, then unstage"
+	@echo "  diff-file         Stage all, save diff to diff_output.txt, then unstage"
+	@echo ""
+	@echo "Note: Output file for 'diff-file' is 'diff_output.txt'."
+
 # Build the application locally
 .PHONY: build
 build: 
@@ -55,17 +81,35 @@ test:
 	@go test ./...
 	@echo "Done!"
 
+# Display test coverage
+.PHONY: coverage
+coverage:
+	@echo "Generating test coverage..."
+	@$(GO) test -cover ./...
+	@echo "Coverage displayed!"
+
+# Open coverage report in browser
+.PHONY: cover
+cover:
+	@echo "Generating and opening coverage report..."
+	@$(GO) test -coverprofile=coverage.out ./... && $(GO) tool cover -html=coverage.out
+	@echo "Coverage report opened!"
+
+# Alias for 'run'
 .PHONY: start
 start: run
 
+# Stop the running application
 .PHONY: stop
 stop:
 	@echo "Stopping ${BINARY_NAME}..."
 	@-pkill -SIGTERM -f "./${BUILD_DIR}/${BINARY_NAME}" || true
 	@echo "Stopped ${BINARY_NAME}!"
 
+#Restart the application (stop then start)
 .PHONY: restart
 restart: stop start
+
 
 ##################################
 # Dev-Only Targets
@@ -76,8 +120,14 @@ stage-all:
 	@git add .
 	@echo "All files staged!"
 
-.PHONY: diff
-diff:
+.PHONY: unstage-all
+unstage-all:
+	@echo "Unstaging all files..."
+	@git restore --staged .
+	@echo "All files unstaged!"
+
+.PHONY: diff-to-clipboard
+diff-to-clipboard:
 	@echo "Copying diff to clipboard..."
 	@if [ "$$(uname)" = "Darwin" ]; then \
 		git diff --staged | pbcopy; \
@@ -101,6 +151,13 @@ diff:
 		exit 1; \
 	fi
 
-.PHONY: diff-all
-diff-all: stage-all diff
-	@echo "Staged all modified files and copied diff to clipboard."
+.PHONY: diff
+diff: stage-all diff-to-clipboard  unstage-all
+	@echo "DIff content on clipboard and ready to paste."
+
+.PHONY: diff-file
+diff-file: stage-all
+	@echo "Saving diff to diff_output.txt..."
+	@git diff --staged > diff_output.txt
+	@echo "Diff saved to diff_output.txt."
+	@$(MAKE) unstage-all
