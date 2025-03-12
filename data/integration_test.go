@@ -950,3 +950,99 @@ func TestToken_AuthenticateToken(t *testing.T) {
 		t.Errorf("cleanup failed for expired user %d: %v", expiredUserID, err)
 	}
 }
+
+// TestToken_Delete tests the Delete method of the Token model.
+// It verifies that:
+//   - A token can be successfully deleted by its ID, leaving it un retrievable.
+//   - Deleting a non-existent token ID returns no error (as per upper/db behavior).
+//
+// The test inserts a user and a token, deletes the token by ID, and checks its absence,
+// then attempts to delete a non-existent ID. Cleanup removes the test user from the database.
+func TestToken_Delete(t *testing.T) {
+	// Insert a test user
+	user := User{
+		FirstName: "Delete",
+		LastName:  "Test",
+		Active:    1,
+		Email:     "delete@example.com",
+		Password:  "Delete@123",
+	}
+	userID, err := models.Users.Insert(user)
+	if err != nil {
+		t.Fatalf("failed to insert user: %v", err)
+	}
+	user.ID = userID
+	t.Logf("Inserted user ID: %d", userID)
+
+	// Generate and insert a token
+	token, plainText, err := models.Tokens.GenerateToken(userID, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("failed to generate token: %v", err)
+	}
+	err = models.Tokens.Insert(*token, user, plainText)
+	if err != nil {
+		t.Fatalf("failed to insert token: %v", err)
+	}
+	t.Logf("Inserted token with plaintext: %s", plainText)
+
+	// Verify insertion and get token ID
+	tok, err := models.Tokens.GetByToken(plainText)
+	if err != nil {
+		t.Fatalf("failed to verify token insertion: %v", err)
+	}
+	tokenID := tok.ID
+	t.Logf("Token ID: %d", tokenID)
+
+	tests := []struct {
+		name    string
+		id      int
+		wantErr bool
+	}{
+		{
+			name:    "Delete existing token",
+			id:      tokenID,
+			wantErr: false,
+		},
+		{
+			name:    "Delete non-existent token",
+			id:      999,
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := models.Tokens.Delete(tt.id)
+			t.Logf("Deleting token ID %d, result: %v", tt.id, err)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected an error, got nil")
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+			}
+
+			// Verify deletion for existing token case
+			if tt.name == "Delete existing token" {
+				_, err := models.Tokens.Get(tt.id)
+				if err == nil {
+					t.Fatalf("expected token ID %d to be deleted, but it was still found", tt.id)
+				}
+				// Check if GetByToken also fails
+				_, err = models.Tokens.GetByToken(plainText)
+				if err == nil {
+					t.Fatalf("expected token with plaintext %s to be deleted, but it was still found", plainText)
+				}
+				t.Logf("Confirmed token ID %d deleted", tt.id)
+			}
+		})
+	}
+
+	// Cleanup
+	if err := models.Users.Delete(userID); err != nil {
+		t.Errorf("cleanup failed for user %d: %v", userID, err)
+	}
+}
