@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	up "github.com/upper/db/v4"
+	"github.com/upper/db/v4"
 )
 
 func (h *Handlers) UserLogin(w http.ResponseWriter, r *http.Request) {
@@ -24,7 +24,7 @@ func (h *Handlers) PostUserLogin(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.Models.Users.GetByEmail(email)
 	if err != nil {
-		if err == up.ErrNilRecord || err == up.ErrNoMoreRows {
+		if err == db.ErrNilRecord || err == db.ErrNoMoreRows {
 			w.Write([]byte("No user with that email was found!"))
 			return
 		}
@@ -42,7 +42,6 @@ func (h *Handlers) PostUserLogin(w http.ResponseWriter, r *http.Request) {
 	h.App.Session.Put(r.Context(), "userID", user.ID)
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
-
 }
 
 func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {
