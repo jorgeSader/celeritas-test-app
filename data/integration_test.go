@@ -3,7 +3,9 @@
 package data
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
 	"log"
@@ -52,6 +54,10 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Setenv("DATABASE_TYPE", "postgres")
+
+	// Enable upper/db logging by setting UPPER_DB_LOG to DEBUG
+	os.Setenv("UPPER_DB_LOG", "DEBUG")
+
 	ctx := context.Background()
 
 	timeout := 30 * time.Second
@@ -460,35 +466,45 @@ func TestToken_GenerateToken(t *testing.T) {
 
 // TestToken_Insert tests inserting a new token for a user.
 func TestToken_Insert(t *testing.T) {
-	user := User{
-		FirstName: "Test",
-		LastName:  "User",
-		Active:    1,
-		Email:     "inserttoken@example.com",
-		Password:  "Test@123",
-	}
+	user := User{FirstName: "Test", LastName: "User", Active: 1, Email: "inserttoken@example.com", Password: "Test@123"}
 	id, err := models.Users.Insert(user)
 	if err != nil {
 		t.Fatalf("failed to insert user: %v", err)
 	}
-	// Update user.ID with the inserted ID
 	user.ID = id
 
 	token, plainText, err := models.Tokens.GenerateToken(id, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
+	expectedHash := sha256.Sum256([]byte(plainText))
+
 	err = models.Tokens.Insert(*token, user, plainText)
 	if err != nil {
 		t.Fatalf("failed to insert token: %v", err)
 	}
+
+	var dbHash []byte
+	query := "SELECT token_hash FROM tokens WHERE user_id = $1"
+	err = testDB.QueryRow(query, id).Scan(&dbHash)
+	if err != nil {
+		t.Fatalf("failed to query stored hash: %v", err)
+	}
+	if !bytes.Equal(dbHash, expectedHash[:]) {
+		t.Errorf("stored hash doesn’t match expected hash\nstored: %x\nexpected: %x", dbHash, expectedHash[:])
+	}
+
 	tok, err := models.Tokens.GetByToken(plainText)
 	if err != nil {
 		t.Fatalf("failed to get inserted token: %v", err)
 	}
+	if !bytes.Equal(tok.Hash, expectedHash[:]) {
+		t.Errorf("retrieved hash doesn’t match expected hash\nretrieved: %x\nexpected: %x", tok.Hash, expectedHash[:])
+	}
 	if tok.UserID != id {
 		t.Fatalf("expected user ID %d, got %d", id, tok.UserID)
 	}
+
 	if err := models.Users.Delete(id); err != nil {
 		t.Errorf("cleanup failed: %v", err)
 	}
