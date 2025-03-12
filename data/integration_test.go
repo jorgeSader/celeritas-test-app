@@ -56,8 +56,8 @@ func TestMain(m *testing.M) {
 
 	os.Setenv("DATABASE_TYPE", "postgres")
 
-	// Enable upper/db logging by setting UPPER_DB_LOG to DEBUG
-	os.Setenv("UPPER_DB_LOG", "DEBUG")
+	// Set upperDB logger preference
+	os.Setenv("UPPER_DB_LOG", "ERROR")
 
 	ctx := context.Background()
 
