@@ -85,14 +85,14 @@ test:
 .PHONY: coverage
 coverage:
 	@echo "Generating test coverage..."
-	@$(GO) test -cover ./...
+	@go test -cover ./...
 	@echo "Coverage displayed!"
 
 # Open coverage report in browser
 .PHONY: cover
 cover:
 	@echo "Generating and opening coverage report..."
-	@$(GO) test -coverprofile=coverage.out ./... && $(GO) tool cover -html=coverage.out
+	@go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out
 	@echo "Coverage report opened!"
 
 # Alias for 'run'
