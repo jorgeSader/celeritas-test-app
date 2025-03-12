@@ -33,6 +33,7 @@ type Token struct {
 	UserID    int       `db:"user_id"`
 	FirstName string    `db:"first_name"`
 	Email     string    `db:"email"`
+	plainText string    `db:""`
 	Hash      []byte    `db:"token_hash"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
@@ -127,7 +128,7 @@ func (t *Token) DeleteByToken(plainText string) error {
 
 // Insert adds a new token to the database for a user.
 // It deletes existing tokens for the user first, then inserts the new one using the provided plaintext.
-func (t *Token) Insert(token Token, user User, plainText string) error {
+func (t *Token) Insert(token Token, user User) error {
 	collection := upper.Collection(t.Table())
 	res := collection.Find(db.Cond{"user_id =": user.ID})
 	err := res.Delete()
@@ -140,7 +141,7 @@ func (t *Token) Insert(token Token, user User, plainText string) error {
 	token.UserID = user.ID
 	token.FirstName = user.FirstName
 	token.Email = user.Email
-	hash := sha256.Sum256([]byte(plainText))
+	hash := sha256.Sum256([]byte(token.plainText))
 	token.Hash = hash[:]
 
 	_, err = collection.Insert(token)
@@ -151,8 +152,8 @@ func (t *Token) Insert(token Token, user User, plainText string) error {
 }
 
 // GenerateToken creates a new token for a user with a specified time-to-live (TTL).
-// It returns the token struct and its plaintext value.
-func (t *Token) GenerateToken(userID int, ttl time.Duration) (*Token, string, error) {
+// It returns the token struct or an error.
+func (t *Token) GenerateToken(userID int, ttl time.Duration) (*Token, error) {
 	token := &Token{
 		UserID:  userID,
 		Expires: time.Now().Add(ttl),
@@ -161,7 +162,7 @@ func (t *Token) GenerateToken(userID int, ttl time.Duration) (*Token, string, er
 	randomBytes := make([]byte, 16)
 	_, err := rand.Read(randomBytes)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	plainText := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(randomBytes)
@@ -170,10 +171,11 @@ func (t *Token) GenerateToken(userID int, ttl time.Duration) (*Token, string, er
 	} else if len(plainText) > TokenLength {
 		plainText = plainText[:TokenLength]
 	}
+	token.plainText = plainText
 
 	hash := sha256.Sum256([]byte(plainText))
 	token.Hash = hash[:]
-	return token, plainText, nil
+	return token, nil
 }
 
 // AuthenticateToken validates a token from an HTTP request’s Authorization header.
