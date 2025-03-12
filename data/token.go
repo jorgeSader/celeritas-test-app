@@ -3,8 +3,10 @@ package data
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base32"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -27,14 +29,14 @@ func init() {
 
 // Token represents a token entity in the database.
 type Token struct {
-	ID        int       `db:"id" json:"id"`
-	UserID    int       `db:"user_id" json:"user_id"`
-	FirstName string    `db:"first_name" json:"first_name"`
-	Email     string    `db:"email" json:"email"`
-	Hash      []byte    `db:"token_hash" json:"-"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
-	Expires   time.Time `db:"expiry" json:"expiry"`
+	ID        int       `db:"id,omitempty"`
+	UserID    int       `db:"user_id"`
+	FirstName string    `db:"first_name"`
+	Email     string    `db:"email"`
+	Hash      []byte    `db:"token_hash"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+	Expires   time.Time `db:"expiry"`
 }
 
 // Table returns the database table name for the Token model.
@@ -42,29 +44,27 @@ func (t *Token) Table() string {
 	return "tokens"
 }
 
-// GetUserForToken retrieves the user associated with a given token.
-// It hashes the plaintext token and queries the database.
-func (t *Token) GetUserForToken(token string) (*User, error) {
+// GetUserForToken retrieves the user associated with a given token hash.
+// The token is hashed to match the stored token_hash in the database.
+func (t *Token) GetUserForToken(plainText string) (User, error) {
+	var token Token
 	var user User
-	var theToken Token
-
-	hash := sha256.Sum256([]byte(token))
-	collection := upper.Collection(t.Table())
-	res := collection.Find(db.Cond{"token_hash": hash[:]})
-	err := res.One(&theToken)
+	hash := sha256.Sum256([]byte(plainText))
+	row, err := upper.SQL().QueryRow("SELECT id, user_id, first_name, email, token_hash, created_at, updated_at, expiry FROM tokens WHERE token_hash = $1 LIMIT 1", hash[:])
+	err = row.Scan(&token.ID, &token.UserID, &token.FirstName, &token.Email, &token.Hash, &token.CreatedAt, &token.UpdatedAt, &token.Expires)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return user, fmt.Errorf("no matching user found")
+		}
+		return user, err
 	}
-
-	collection = upper.Collection(user.Table())
-	res = collection.Find(db.Cond{"id": theToken.UserID})
+	collection := upper.Collection("users")
+	res := collection.Find(db.Cond{"id": token.UserID})
 	err = res.One(&user)
 	if err != nil {
-		return nil, err
+		return user, fmt.Errorf("no matching user found")
 	}
-
-	user.Token = theToken
-	return &user, nil
+	return user, nil
 }
 
 // GetTokensForUser retrieves all tokens associated with a given user ID.
@@ -96,9 +96,11 @@ func (t *Token) Get(id int) (*Token, error) {
 func (t *Token) GetByToken(plainText string) (*Token, error) {
 	var token Token
 	hash := sha256.Sum256([]byte(plainText))
-	collection := upper.Collection(t.Table())
-	res := collection.Find(db.Cond{"token_hash": hash[:]})
-	err := res.One(&token)
+	row, err := upper.SQL().QueryRow("SELECT id, user_id, first_name, email, token_hash, created_at, updated_at, expiry FROM tokens WHERE token_hash = $1 LIMIT 1", hash[:])
+	if err != nil {
+		return nil, err
+	}
+	err = row.Scan(&token.ID, &token.UserID, &token.FirstName, &token.Email, &token.Hash, &token.CreatedAt, &token.UpdatedAt, &token.Expires)
 	if err != nil {
 		return nil, err
 	}
@@ -116,17 +118,11 @@ func (t *Token) Delete(id int) error {
 	return nil
 }
 
-// DeleteByToken removes a token from the database by its plaintext value.
-// It hashes the token to locate and delete it.
+// DeleteByToken removes a token from the database based on its plaintext value.
 func (t *Token) DeleteByToken(plainText string) error {
 	hash := sha256.Sum256([]byte(plainText))
-	collection := upper.Collection(t.Table())
-	res := collection.Find(db.Cond{"token_hash": hash[:]})
-	err := res.Delete()
-	if err != nil {
-		return err
-	}
-	return nil
+	_, err := upper.SQL().Exec("DELETE FROM tokens WHERE token_hash = $1", hash[:])
+	return err
 }
 
 // Insert adds a new token to the database for a user.
@@ -212,18 +208,23 @@ func (t *Token) AuthenticateToken(r *http.Request) (*User, error) {
 		return nil, errors.New("no matching user found for token")
 	}
 
-	return user, nil
+	return &user, nil
 }
 
 // ValidToken checks if a token is valid and not expired.
 // It returns true if valid, false otherwise, with an error on failure.
-func (t *Token) ValidToken(token string) (bool, error) {
-	user, err := t.GetUserForToken(token)
+func (t *Token) ValidToken(plainText string) (bool, error) {
+	_, err := t.GetUserForToken(plainText)
 	if err != nil {
 		return false, err
 	}
 
-	if user.Token.Expires.Before(time.Now()) {
+	token, err := t.GetByToken(plainText)
+	if err != nil {
+		return false, err
+	}
+
+	if token.Expires.Before(time.Now()) {
 		return false, errors.New("token has expired")
 	}
 
