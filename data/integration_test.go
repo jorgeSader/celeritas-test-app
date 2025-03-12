@@ -9,6 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -768,5 +769,184 @@ func TestToken_ValidToken(t *testing.T) {
 
 	if err := models.Users.Delete(id); err != nil {
 		t.Errorf("cleanup failed: %v", err)
+	}
+}
+
+// TestToken_AuthenticateToken tests the AuthenticateToken method of the Token model.
+// It verifies token authentication from an HTTP request's Authorization header across multiple scenarios:
+//   - Valid token: Successfully authenticates a non-expired token and returns the associated user.
+//   - No Authorization header: Fails with "no authorization header received".
+//   - Invalid header format: Fails with "invalid authorization header format" for missing "Bearer" or malformed headers.
+//   - Invalid token length: Fails with "invalid token length" for tokens not matching TokenLength.
+//   - Non-existent token: Fails with "no matching token found" for valid-length but unmatched tokens.
+//   - Expired token: Fails with "token has expired" for tokens past their expiry.
+//
+// The test creates separate users for valid and expired tokens to avoid overwriting, inserts tokens into the database,
+// and validates the expected user or error response for each case. Cleanup removes all test data from the database.
+func TestToken_AuthenticateToken(t *testing.T) {
+	// Insert a test user
+	user := User{
+		FirstName: "Auth",
+		LastName:  "Test",
+		Active:    1,
+		Email:     "auth@example.com",
+		Password:  "Auth@123",
+	}
+	userID, err := models.Users.Insert(user)
+	if err != nil {
+		t.Fatalf("failed to insert user: %v", err)
+	}
+	user.ID = userID
+	t.Logf("Inserted user ID: %d", userID)
+
+	// Generate and insert a valid token
+	validToken, validPlainText, err := models.Tokens.GenerateToken(userID, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("failed to generate valid token: %v", err)
+	}
+	t.Logf("Valid plaintext token: %s (length: %d)", validPlainText, len(validPlainText))
+	err = models.Tokens.Insert(*validToken, user, validPlainText)
+	if err != nil {
+		t.Fatalf("failed to insert valid token: %v", err)
+	}
+	t.Log("Valid token inserted")
+
+	// Verify insertion
+	tok, err := models.Tokens.GetByToken(validPlainText)
+	if err != nil {
+		t.Fatalf("failed to verify token insertion: %v", err)
+	}
+	t.Logf("Verified token ID: %d, Hash: %x", tok.ID, tok.Hash)
+
+	// Check all tokens for user
+	tokens, err := models.Tokens.GetTokensForUser(userID)
+	if err != nil {
+		t.Fatalf("failed to get tokens for user: %v", err)
+	}
+	t.Logf("Tokens for user %d after valid insert: %d", userID, len(tokens))
+
+	// Generate and insert an expired token (separate user to avoid overwrite)
+	expiredUser := User{
+		FirstName: "Expired",
+		LastName:  "Test",
+		Active:    1,
+		Email:     "expired@example.com",
+		Password:  "Expired@123",
+	}
+	expiredUserID, err := models.Users.Insert(expiredUser)
+	if err != nil {
+		t.Fatalf("failed to insert expired user: %v", err)
+	}
+	expiredUser.ID = expiredUserID
+	t.Logf("Inserted expired user ID: %d", expiredUserID)
+
+	expiredToken, expiredPlainText, err := models.Tokens.GenerateToken(expiredUserID, -24*time.Hour)
+	if err != nil {
+		t.Fatalf("failed to generate expired token: %v", err)
+	}
+	err = models.Tokens.Insert(*expiredToken, expiredUser, expiredPlainText)
+	if err != nil {
+		t.Fatalf("failed to insert expired token: %v", err)
+	}
+	t.Log("Expired token inserted")
+
+	// Verify valid token still exists
+	tok, err = models.Tokens.GetByToken(validPlainText)
+	if err != nil {
+		t.Fatalf("valid token no longer found after expired insert: %v", err)
+	}
+	t.Logf("Re-verified valid token ID: %d, Hash: %x", tok.ID, tok.Hash)
+
+	tests := []struct {
+		name       string
+		authHeader string
+		wantErr    string
+		wantUserID int
+	}{
+		{
+			name:       "Valid token",
+			authHeader: "Bearer " + validPlainText,
+			wantErr:    "",
+			wantUserID: int(userID),
+		},
+		{
+			name:       "No Authorization header",
+			authHeader: "",
+			wantErr:    "no authorization header received",
+			wantUserID: 0,
+		},
+		{
+			name:       "Invalid header format - no Bearer",
+			authHeader: validPlainText,
+			wantErr:    "invalid authorization header format",
+			wantUserID: 0,
+		},
+		{
+			name:       "Invalid header format - malformed",
+			authHeader: "Bearer",
+			wantErr:    "invalid authorization header format",
+			wantUserID: 0,
+		},
+		{
+			name:       "Invalid token length",
+			authHeader: "Bearer short",
+			wantErr:    "invalid token length",
+			wantUserID: 0,
+		},
+		{
+			name:       "Non-existent token",
+			authHeader: "Bearer abcdefghijklmnopqrstuvwxyz",
+			wantErr:    "no matching token found",
+			wantUserID: 0,
+		},
+		{
+			name:       "Expired token",
+			authHeader: "Bearer " + expiredPlainText,
+			wantErr:    "token has expired",
+			wantUserID: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest("GET", "/test", nil)
+			if tt.authHeader != "" {
+				req.Header.Set("Authorization", tt.authHeader)
+			}
+			t.Logf("Testing with Authorization: %s", tt.authHeader)
+
+			user, err := models.Tokens.AuthenticateToken(req)
+			t.Logf("Result: user=%v, err=%v", user, err)
+
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatalf("expected error %q, got nil", tt.wantErr)
+				}
+				if err.Error() != tt.wantErr {
+					t.Fatalf("expected error %q, got %q", tt.wantErr, err.Error())
+				}
+				if user != nil {
+					t.Fatalf("expected nil user, got %+v", user)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if user == nil {
+					t.Fatal("expected non-nil user, got nil")
+				}
+				if user.ID != tt.wantUserID {
+					t.Fatalf("expected user ID %d, got %d", tt.wantUserID, user.ID)
+				}
+			}
+		})
+	}
+
+	// Cleanup
+	if err := models.Users.Delete(userID); err != nil {
+		t.Errorf("cleanup failed for user %d: %v", userID, err)
+	}
+	if err := models.Users.Delete(expiredUserID); err != nil {
+		t.Errorf("cleanup failed for expired user %d: %v", expiredUserID, err)
 	}
 }
