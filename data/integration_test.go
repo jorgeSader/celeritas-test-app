@@ -450,15 +450,15 @@ func TestToken_GenerateToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to insert user: %v", err)
 	}
-	token, plainText, err := models.Tokens.GenerateToken(userID, 24*time.Hour)
+	token, err := models.Tokens.GenerateToken(userID, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
 	if token.UserID != userID {
 		t.Errorf("got user ID %d, want %d", token.UserID, userID)
 	}
-	if len(plainText) != TokenLength {
-		t.Fatalf("expected token length %d, got %d", TokenLength, len(plainText))
+	if len(token.plainText) != TokenLength {
+		t.Fatalf("expected token length %d, got %d", TokenLength, len(token.plainText))
 	}
 	if err := models.Users.Delete(userID); err != nil {
 		t.Errorf("cleanup failed: %v", err)
@@ -474,13 +474,13 @@ func TestToken_Insert(t *testing.T) {
 	}
 	user.ID = id
 
-	token, plainText, err := models.Tokens.GenerateToken(id, 24*time.Hour)
+	token, err := models.Tokens.GenerateToken(id, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
-	expectedHash := sha256.Sum256([]byte(plainText))
+	expectedHash := sha256.Sum256([]byte(token.plainText))
 
-	err = models.Tokens.Insert(*token, user, plainText)
+	err = models.Tokens.Insert(*token, user)
 	if err != nil {
 		t.Fatalf("failed to insert token: %v", err)
 	}
@@ -495,7 +495,7 @@ func TestToken_Insert(t *testing.T) {
 		t.Errorf("stored hash doesn’t match expected hash\nstored: %x\nexpected: %x", dbHash, expectedHash[:])
 	}
 
-	tok, err := models.Tokens.GetByToken(plainText)
+	tok, err := models.Tokens.GetByToken(token.plainText)
 	if err != nil {
 		t.Fatalf("failed to get inserted token: %v", err)
 	}
@@ -526,15 +526,15 @@ func TestToken_GetUserForToken(t *testing.T) {
 	}
 	user.ID = id // Set the ID
 
-	token, plainText, err := models.Tokens.GenerateToken(id, 24*time.Hour)
+	token, err := models.Tokens.GenerateToken(id, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
-	err = models.Tokens.Insert(*token, user, plainText)
+	err = models.Tokens.Insert(*token, user)
 	if err != nil {
 		t.Fatalf("failed to insert token: %v", err)
 	}
-	u, err := models.Tokens.GetUserForToken(plainText)
+	u, err := models.Tokens.GetUserForToken(token.plainText)
 	if err != nil {
 		t.Fatalf("failed to get user for token: %v", err)
 	}
@@ -565,11 +565,11 @@ func TestToken_GetTokensForUser(t *testing.T) {
 	}
 	user.ID = id // Set the ID
 
-	token, plainText, err := models.Tokens.GenerateToken(id, 24*time.Hour)
+	token, err := models.Tokens.GenerateToken(id, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
-	err = models.Tokens.Insert(*token, user, plainText)
+	err = models.Tokens.Insert(*token, user)
 	if err != nil {
 		t.Fatalf("failed to insert token: %v", err)
 	}
@@ -607,15 +607,15 @@ func TestToken_GetByToken(t *testing.T) {
 	}
 	user.ID = id // Set the ID
 
-	token, plainText, err := models.Tokens.GenerateToken(id, 24*time.Hour)
+	token, err := models.Tokens.GenerateToken(id, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
-	err = models.Tokens.Insert(*token, user, plainText)
+	err = models.Tokens.Insert(*token, user)
 	if err != nil {
 		t.Fatalf("failed to insert token: %v", err)
 	}
-	tok, err := models.Tokens.GetByToken(plainText)
+	tok, err := models.Tokens.GetByToken(token.plainText)
 	if err != nil {
 		t.Fatalf("failed to get token: %v", err)
 	}
@@ -646,15 +646,15 @@ func TestToken_Get(t *testing.T) {
 	}
 	user.ID = id // Set the ID
 
-	token, plainText, err := models.Tokens.GenerateToken(id, 24*time.Hour)
+	token, err := models.Tokens.GenerateToken(id, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
-	err = models.Tokens.Insert(*token, user, plainText)
+	err = models.Tokens.Insert(*token, user)
 	if err != nil {
 		t.Fatalf("failed to insert token: %v", err)
 	}
-	tok, err := models.Tokens.GetByToken(plainText)
+	tok, err := models.Tokens.GetByToken(token.plainText)
 	if err != nil {
 		t.Fatalf("failed to get token: %v", err)
 	}
@@ -689,19 +689,19 @@ func TestToken_DeleteByToken(t *testing.T) {
 	}
 	user.ID = id // Set the ID
 
-	token, plainText, err := models.Tokens.GenerateToken(id, 24*time.Hour)
+	token, err := models.Tokens.GenerateToken(id, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
-	err = models.Tokens.Insert(*token, user, plainText)
+	err = models.Tokens.Insert(*token, user)
 	if err != nil {
 		t.Fatalf("failed to insert token: %v", err)
 	}
-	err = models.Tokens.DeleteByToken(plainText)
+	err = models.Tokens.DeleteByToken(token.plainText)
 	if err != nil {
 		t.Fatalf("failed to delete token: %v", err)
 	}
-	_, err = models.Tokens.GetByToken(plainText)
+	_, err = models.Tokens.GetByToken(token.plainText)
 	if err == nil {
 		t.Fatal("expected error for deleted token")
 	}
@@ -740,15 +740,15 @@ func TestToken_ValidToken(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var plainText string
 			if tt.name != "invalid" {
-				token, pt, err := models.Tokens.GenerateToken(id, tt.tokenTTL)
+				token, err := models.Tokens.GenerateToken(id, tt.tokenTTL)
 				if err != nil {
 					t.Fatalf("failed to generate token: %v", err)
 				}
-				err = models.Tokens.Insert(*token, user, pt)
+				err = models.Tokens.Insert(*token, user)
 				if err != nil {
 					t.Fatalf("failed to insert token: %v", err)
 				}
-				plainText = pt
+				plainText = token.plainText
 			} else {
 				plainText = "invalidtoken12345678901234"
 			}
@@ -800,12 +800,14 @@ func TestToken_AuthenticateToken(t *testing.T) {
 	t.Logf("Inserted user ID: %d", userID)
 
 	// Generate and insert a valid token
-	validToken, validPlainText, err := models.Tokens.GenerateToken(userID, 24*time.Hour)
+	validToken, err := models.Tokens.GenerateToken(userID, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("failed to generate valid token: %v", err)
 	}
+	validPlainText := validToken.plainText
+
 	t.Logf("Valid plaintext token: %s (length: %d)", validPlainText, len(validPlainText))
-	err = models.Tokens.Insert(*validToken, user, validPlainText)
+	err = models.Tokens.Insert(*validToken, user)
 	if err != nil {
 		t.Fatalf("failed to insert valid token: %v", err)
 	}
@@ -840,11 +842,13 @@ func TestToken_AuthenticateToken(t *testing.T) {
 	expiredUser.ID = expiredUserID
 	t.Logf("Inserted expired user ID: %d", expiredUserID)
 
-	expiredToken, expiredPlainText, err := models.Tokens.GenerateToken(expiredUserID, -24*time.Hour)
+	expiredToken, err := models.Tokens.GenerateToken(expiredUserID, -24*time.Hour)
 	if err != nil {
 		t.Fatalf("failed to generate expired token: %v", err)
 	}
-	err = models.Tokens.Insert(*expiredToken, expiredUser, expiredPlainText)
+	expiredPlainText := expiredToken.plainText
+
+	err = models.Tokens.Insert(*expiredToken, expiredUser)
 	if err != nil {
 		t.Fatalf("failed to insert expired token: %v", err)
 	}
@@ -975,18 +979,18 @@ func TestToken_Delete(t *testing.T) {
 	t.Logf("Inserted user ID: %d", userID)
 
 	// Generate and insert a token
-	token, plainText, err := models.Tokens.GenerateToken(userID, 24*time.Hour)
+	token, err := models.Tokens.GenerateToken(userID, 24*time.Hour)
 	if err != nil {
 		t.Fatalf("failed to generate token: %v", err)
 	}
-	err = models.Tokens.Insert(*token, user, plainText)
+	err = models.Tokens.Insert(*token, user)
 	if err != nil {
 		t.Fatalf("failed to insert token: %v", err)
 	}
-	t.Logf("Inserted token with plaintext: %s", plainText)
+	t.Logf("Inserted token with plaintext: %s", token.plainText)
 
 	// Verify insertion and get token ID
-	tok, err := models.Tokens.GetByToken(plainText)
+	tok, err := models.Tokens.GetByToken(token.plainText)
 	if err != nil {
 		t.Fatalf("failed to verify token insertion: %v", err)
 	}
@@ -1032,9 +1036,9 @@ func TestToken_Delete(t *testing.T) {
 					t.Fatalf("expected token ID %d to be deleted, but it was still found", tt.id)
 				}
 				// Check if GetByToken also fails
-				_, err = models.Tokens.GetByToken(plainText)
+				_, err = models.Tokens.GetByToken(token.plainText)
 				if err == nil {
-					t.Fatalf("expected token with plaintext %s to be deleted, but it was still found", plainText)
+					t.Fatalf("expected token with plaintext %s to be deleted, but it was still found", token.plainText)
 				}
 				t.Logf("Confirmed token ID %d deleted", tt.id)
 			}
