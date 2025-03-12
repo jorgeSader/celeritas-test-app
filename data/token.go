@@ -6,45 +6,58 @@ import (
 	"encoding/base32"
 	"errors"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
-	up "github.com/upper/db/v4"
+	"github.com/upper/db/v4"
 )
 
-// Token represents an authentication token associated with a user.
+// TokenLength defines the length of generated tokens, configurable via the TOKEN_LENGTH environment variable.
+var TokenLength = 26
+
+func init() {
+	if tl := os.Getenv("TOKEN_LENGTH"); tl != "" {
+		if i, err := strconv.Atoi(tl); err == nil {
+			TokenLength = i
+		}
+	}
+}
+
+// Token represents a token entity in the database.
 type Token struct {
 	ID        int       `db:"id" json:"id"`
 	UserID    int       `db:"user_id" json:"user_id"`
 	FirstName string    `db:"first_name" json:"first_name"`
-	LastName  string    `db:"last_name" json:"last_name"`
 	Email     string    `db:"email" json:"email"`
-	PlainText string    `db:"token" json:"plain_text"`
 	Hash      []byte    `db:"token_hash" json:"-"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 	Expires   time.Time `db:"expiry" json:"expiry"`
 }
 
-// Table returns the database table name for tokens.
+// Table returns the database table name for the Token model.
 func (t *Token) Table() string {
 	return "tokens"
 }
 
-// GetUserForToken retrieves the user for a given plaintext token.
+// GetUserForToken retrieves the user associated with a given token.
+// It hashes the plaintext token and queries the database.
 func (t *Token) GetUserForToken(token string) (*User, error) {
 	var user User
 	var theToken Token
 
+	hash := sha256.Sum256([]byte(token))
 	collection := upper.Collection(t.Table())
-	res := collection.Find(up.Cond{"token": token})
+	res := collection.Find(db.Cond{"token_hash": hash[:]})
 	err := res.One(&theToken)
 	if err != nil {
 		return nil, err
 	}
 
 	collection = upper.Collection(user.Table())
-	res = collection.Find(up.Cond{"id": theToken.UserID})
+	res = collection.Find(db.Cond{"id": theToken.UserID})
 	err = res.One(&user)
 	if err != nil {
 		return nil, err
@@ -54,52 +67,48 @@ func (t *Token) GetUserForToken(token string) (*User, error) {
 	return &user, nil
 }
 
-// GetTokensForUser retrieves all tokens for a user by ID.
+// GetTokensForUser retrieves all tokens associated with a given user ID.
 func (t *Token) GetTokensForUser(id int) ([]*Token, error) {
 	var tokens []*Token
-
 	collection := upper.Collection(t.Table())
-	res := collection.Find(up.Cond{"user_id": id})
+	res := collection.Find(db.Cond{"user_id": id})
 	err := res.All(&tokens)
 	if err != nil {
 		return nil, err
 	}
-
 	return tokens, nil
 }
 
 // Get retrieves a token by its ID.
 func (t *Token) Get(id int) (*Token, error) {
 	var token Token
-
 	collection := upper.Collection(t.Table())
-	res := collection.Find(up.Cond{"id =": id})
+	res := collection.Find(db.Cond{"id =": id})
 	err := res.One(&token)
 	if err != nil {
 		return nil, err
 	}
-
 	return &token, nil
 }
 
 // GetByToken retrieves a token by its plaintext value.
+// It hashes the token to match against the stored hash.
 func (t *Token) GetByToken(plainText string) (*Token, error) {
 	var token Token
-
+	hash := sha256.Sum256([]byte(plainText))
 	collection := upper.Collection(t.Table())
-	res := collection.Find(up.Cond{"token =": plainText})
+	res := collection.Find(db.Cond{"token_hash": hash[:]})
 	err := res.One(&token)
 	if err != nil {
 		return nil, err
 	}
-
 	return &token, nil
 }
 
-// Delete removes a token by its ID.
+// Delete removes a token from the database by its ID.
 func (t *Token) Delete(id int) error {
 	collection := upper.Collection(t.Table())
-	res := collection.Find(up.Cond{"id =": id})
+	res := collection.Find(db.Cond{"id =": id})
 	err := res.Delete()
 	if err != nil {
 		return err
@@ -107,10 +116,12 @@ func (t *Token) Delete(id int) error {
 	return nil
 }
 
-// DeleteByToken removes a token by its plaintext value.
+// DeleteByToken removes a token from the database by its plaintext value.
+// It hashes the token to locate and delete it.
 func (t *Token) DeleteByToken(plainText string) error {
+	hash := sha256.Sum256([]byte(plainText))
 	collection := upper.Collection(t.Table())
-	res := collection.Find(up.Cond{"token =": plainText})
+	res := collection.Find(db.Cond{"token_hash": hash[:]})
 	err := res.Delete()
 	if err != nil {
 		return err
@@ -118,12 +129,11 @@ func (t *Token) DeleteByToken(plainText string) error {
 	return nil
 }
 
-// Insert adds a new token for a user, replacing existing tokens.
-func (t *Token) Insert(token Token, user User) error {
+// Insert adds a new token to the database for a user.
+// It deletes existing tokens for the user first, then inserts the new one using the provided plaintext.
+func (t *Token) Insert(token Token, user User, plainText string) error {
 	collection := upper.Collection(t.Table())
-
-	// Delete existing tokens for the user.
-	res := collection.Find(up.Cond{"user_id =": user.ID})
+	res := collection.Find(db.Cond{"user_id =": user.ID})
 	err := res.Delete()
 	if err != nil {
 		return err
@@ -134,6 +144,8 @@ func (t *Token) Insert(token Token, user User) error {
 	token.UserID = user.ID
 	token.FirstName = user.FirstName
 	token.Email = user.Email
+	hash := sha256.Sum256([]byte(plainText))
+	token.Hash = hash[:]
 
 	_, err = collection.Insert(token)
 	if err != nil {
@@ -142,8 +154,9 @@ func (t *Token) Insert(token Token, user User) error {
 	return nil
 }
 
-// GenerateToken creates a new token for a user with a specified TTL.
-func (t *Token) GenerateToken(userID int, ttl time.Duration) (*Token, error) {
+// GenerateToken creates a new token for a user with a specified time-to-live (TTL).
+// It returns the token struct and its plaintext value.
+func (t *Token) GenerateToken(userID int, ttl time.Duration) (*Token, string, error) {
 	token := &Token{
 		UserID:  userID,
 		Expires: time.Now().Add(ttl),
@@ -152,17 +165,23 @@ func (t *Token) GenerateToken(userID int, ttl time.Duration) (*Token, error) {
 	randomBytes := make([]byte, 16)
 	_, err := rand.Read(randomBytes)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	token.PlainText = base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(randomBytes)
-	hash := sha256.Sum256([]byte(token.PlainText))
-	token.Hash = hash[:]
+	plainText := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(randomBytes)
+	if len(plainText) < TokenLength {
+		plainText = plainText + strings.Repeat("A", TokenLength-len(plainText))
+	} else if len(plainText) > TokenLength {
+		plainText = plainText[:TokenLength]
+	}
 
-	return token, nil
+	hash := sha256.Sum256([]byte(plainText))
+	token.Hash = hash[:]
+	return token, plainText, nil
 }
 
 // AuthenticateToken validates a token from an HTTP request’s Authorization header.
+// It returns the associated user if the token is valid and not expired.
 func (t *Token) AuthenticateToken(r *http.Request) (*User, error) {
 	authorizationHeader := r.Header.Get("Authorization")
 	if authorizationHeader == "" {
@@ -171,11 +190,11 @@ func (t *Token) AuthenticateToken(r *http.Request) (*User, error) {
 
 	headerParts := strings.Split(authorizationHeader, " ")
 	if len(headerParts) != 2 || headerParts[0] != "Bearer" {
-		return nil, errors.New("no valid authorization header received")
+		return nil, errors.New("invalid authorization header format")
 	}
 
 	token := headerParts[1]
-	if len(token) != 26 {
+	if len(token) != TokenLength {
 		return nil, errors.New("invalid token length")
 	}
 
@@ -185,30 +204,27 @@ func (t *Token) AuthenticateToken(r *http.Request) (*User, error) {
 	}
 
 	if tok.Expires.Before(time.Now()) {
-		return nil, errors.New("token expired")
+		return nil, errors.New("token has expired")
 	}
 
 	user, err := t.GetUserForToken(token)
 	if err != nil {
-		return nil, errors.New("no matching user found")
+		return nil, errors.New("no matching user found for token")
 	}
 
 	return user, nil
 }
 
-// ValidToken checks if a plaintext token is valid and unexpired.
+// ValidToken checks if a token is valid and not expired.
+// It returns true if valid, false otherwise, with an error on failure.
 func (t *Token) ValidToken(token string) (bool, error) {
 	user, err := t.GetUserForToken(token)
 	if err != nil {
-		return false, errors.New("no matching user found")
-	}
-
-	if user.Token.PlainText == "" {
-		return false, errors.New("no matching token found")
+		return false, err
 	}
 
 	if user.Token.Expires.Before(time.Now()) {
-		return false, errors.New("token expired")
+		return false, errors.New("token has expired")
 	}
 
 	return true, nil
