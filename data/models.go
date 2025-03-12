@@ -77,12 +77,18 @@ func NewWithError(databasePool *sql.DB) (Models, error) {
 	}, nil
 }
 
-// GetInsertID converts a db.ID to an integer.
-// It supports int and int64 types, returning the value as an int.
+// GetInsertID converts a db.ID to an integer for use as a record identifier.
+// It supports int and int64 types, returning the value as an int. For unsupported
+// types like strings (e.g., UUIDs), it returns 0, assuming the caller handles such cases.
 func GetInsertID(i db.ID) int {
-	idType := fmt.Sprintf("%T", i)
-	if idType == "int64" {
-		return int(i.(int64))
+	switch v := i.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case string:
+		return 0 // Suitable for UUIDs or non-numeric IDs in this context
+	default:
+		return 0 // Default case for unrecognized types
 	}
-	return i.(int)
 }
