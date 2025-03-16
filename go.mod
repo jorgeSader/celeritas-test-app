@@ -65,6 +65,7 @@ require (
 	github.com/moby/term v0.5.2 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect
+	github.com/nyaruka/phonenumbers v1.5.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
@@ -90,6 +91,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
+	golang.org/x/exp v0.0.0-20240525044651-4c93da0ed11d // indirect
 	golang.org/x/sync v0.12.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
