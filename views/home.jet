@@ -7,7 +7,7 @@
 {{block pageContent()}}
 
     <div class="col text-center">
-        <div class="d-flex align-items-center justify-content-center mt-5" ">
+        <div class="d-flex align-items-center justify-content-center mt-5">
             <div>
                 <img src="/public/images/celeritas.jpg" class="mb-5" style="width: 100px;height:auto;">
                 <h1>Celeritas</h1>
@@ -26,7 +26,7 @@
             <a href="/sessions" class="list-group-item list-group-item-action">Try sessions</a>
             <a href="/test-database" class="list-group-item list-group-item-action">Show something from the database</a>
             <a href="/users/login" class="list-group-item list-group-item-action">Log in a user</a>
-        </div>
+            <a href="/form" class="list-group-item list-group-item-action">Form Validation</a>
         </div>
     </div>
 
