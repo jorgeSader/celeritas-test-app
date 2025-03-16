@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -81,13 +82,51 @@ func (a *application) routes() *chi.Mux {
 
 		user.LastName = a.App.RandomString(11)
 
-		err = a.Models.Users.Update(*user)
-		if err != nil {
-			a.App.ErrorLog.Println(err)
+		///////////////////////////////////
+		// Testing new validator package //
+		///////////////////////////////////
+		validator := a.App.Validator(r) // r.Form ignored since we overwrite Data
+
+		// Mock form data with some intentional failures
+		validator.Data = url.Values{
+			"first_name": []string{"Jo"},          // Too short for Between 3, 50
+			"last_name":  []string{user.LastName}, // 11 chars, should pass 5-15
+			"email":      []string{"joe@shmoe"},   // Invalid email
+			"active":     []string{"1"},           // Invalid int
+			"created_at": []string{"01-13-2025"},  // Invalid date (month 13)
+			"username":   []string{"user name"},   // Has spaces
+		}
+
+		// Chain validation rules to test various scenarios
+		validator.Required("first_name", "last_name", "email", "active", "created_at", "username").
+			Between("first_name", 3, 50, "First name must be 3-50 characters").
+			MinLength("last_name", 5, "Last name must be at least 5 characters").
+			MaxLength("last_name", 15, "Last name must be no more than 15 characters").
+			IsEmail("email", "Must be a valid email address").
+			IsInt("active", "Active must be an integer").
+			IsBoolean("active", "Active must be an boolean").
+			IsDate("created_at", "Invalid date format").
+			Contains("username", "@", "Username must contain @").
+			HasNoSpaces("username", "Username must not contain spaces")
+
+		// Output results
+		if !validator.Valid() {
+			w.Write([]byte("Validation failed:\n"))
+			for field, err := range validator.Errors {
+				fmt.Fprintf(w, "%s: %s\n", field, err)
+			}
 			return
 		}
 
-		fmt.Fprintf(w, "user with id %d has been updated to %s %s", id, user.FirstName, user.LastName)
+		// If we reach here, update the user (though this is just a test)
+		err = a.Models.Users.Update(*user)
+		if err != nil {
+			a.App.ErrorLog.Println("Update failed:", err)
+			http.Error(w, "Failed to update user", http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Fprintf(w, "User with id %d updated to %s %s (all validations passed!)", id, user.FirstName, user.LastName)
 	})
 
 	//static routes
