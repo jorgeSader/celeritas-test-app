@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jorgeSader/celeritas"
 	"github.com/upper/db/v4"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -26,6 +27,14 @@ type User struct {
 // Table returns the database table name for the User model.
 func (u *User) Table() string {
 	return "users"
+}
+
+func (u *User) Validate(validator *celeritas.Validation) {
+	validator.Required("first_name", "last_name", "email", "active").
+		Between("first_name", 3, 50, "First name must be 3-50 characters").
+		Between("last_name", 3, 10, "Last name must be 3-10 characters").
+		IsEmail("email", "Must be a valid email address").
+		IsBoolean("active", "Active must be an boolean")
 }
 
 // GetAll retrieves all users from the database, ordered by last name.
