@@ -14,7 +14,7 @@ func (h *Handlers) Form(w http.ResponseWriter, r *http.Request) {
 	vars.Set("validator", validator)
 	vars.Set("user", data.User{})
 
-	err := h.App.Render.Page(w, r, "form", vars, nil)
+	err := h.App.Render.Page(w, r, "form", nil, vars)
 	if err != nil {
 		h.App.ErrorLog.Println(err)
 	}
@@ -46,7 +46,7 @@ func (h *Handlers) PostForm(w http.ResponseWriter, r *http.Request) {
 
 		vars.Set("user", user)
 
-		err := h.App.Render.Page(w, r, "form", vars, nil)
+		err := h.App.Render.Page(w, r, "form", nil, vars)
 		if err != nil {
 			h.App.ErrorLog.Println("error rendering:", err)
 			return
