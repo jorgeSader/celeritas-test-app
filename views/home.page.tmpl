@@ -1,30 +1,33 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Celeritas</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.0/dist/css/bootstrap.min.css" rel="stylesheet"
-          integrity="sha384-KyZXEAg3QhqLMpG8r+8fhAXLRk2vvoC2f3B09zVXn8CA5QIVfZOJ3BCsw2P0p/We" crossorigin="anonymous">
-    <meta name="csrf_token" content="{{.CSRFToken}}">
+{{ template "base" . }}
 
-</head>
-<body>
-    <div class="container">
-        <div class="row">
-            <div class="col text-center">
-                <div class="d-flex align-items-center justify-content-center" style="height: 100vh;">
-                    <div>
-                        <a href="/"><img src="/public/images/celeritas.jpg" class="mb-5" alt="celeritas logo" style="width: 100px;height:auto;"></a>
-                        <h1>Celeritas (Go Templates)</h1>
-                        <hr>
-                        <small class="text-muted">Go build something awesome</small>
-                    </div>
-                </div>
+{{ define "css" }}{{ end }}
+
+{{ define "browserTitle" }}Welcome{{ end }}
+
+{{ define "pageContent" }}
+    <div class="col text-center">
+        <div class="d-flex align-items-center justify-content-center mt-5">
+            <div>
+                <img src="/public/images/celeritas.jpg" class="mb-5" style="width: 100px;height:auto;" alt="celeritas' logo">
+                <h1>Celeritas</h1>
+                <hr>
+                <small class="text-muted">Go build something awesome</small>
+                {{ if .IsAuthenticated }}
+                    <small>Authenticated! <a href="/users/logout" >Logout</a></small>
+                {{ end }}
             </div>
         </div>
+        <hr>
+        <h3>Things to try</h3>
+        <div class="list-group">
+            <a href="/go-page" class="list-group-item list-group-item-action">Render a Go Template</a>
+            <a href="/jet-page" class="list-group-item list-group-item-action">Render a Jet Template</a>
+            <a href="/sessions" class="list-group-item list-group-item-action">Try sessions</a>
+            <a href="/test-database" class="list-group-item list-group-item-action">Show something from the database</a>
+            <a href="/users/login" class="list-group-item list-group-item-action">Log in a user</a>
+            <a href="/form" class="list-group-item list-group-item-action">Form Validation</a>
+        </div>
     </div>
-</body>
-</html>
+{{ end }}
+
+{{ define "js" }}{{ end }}

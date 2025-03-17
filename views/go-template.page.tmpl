@@ -1,0 +1,26 @@
+{{ template "base" . }}
+
+{{ define "css" }}{{ end }}
+
+{{ define "browserTitle" }}Welcome{{ end }}
+
+{{ define "pageContent" }}
+
+<div class="container">
+    <div class="row">
+        <div class="col text-center">
+            <div class="d-flex align-items-center justify-content-center" style="height: 100vh;">
+                <div>
+                    <a href="/"><img src="/public/images/celeritas.jpg" class="mb-5" alt="celeritas logo" style="width: 100px;height:auto;"></a>
+                    <h1>Celeritas (Go Templates)</h1>
+                    <hr>
+                    <small class="text-muted">Go build something awesome</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ end }}
+
+{{ define "js" }}{{ end }}
