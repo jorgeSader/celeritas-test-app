@@ -21,19 +21,19 @@ func (a *application) routes() *chi.Mux {
 	r.Use(middleware.Recoverer)
 
 	// add routes here
-	a.App.Routes.Get("/", a.Handlers.Home)
-	a.App.Routes.Get("/go-page", a.Handlers.GoPage)
-	a.App.Routes.Get("/jet-page", a.Handlers.JetPage)
-	a.App.Routes.Get("/sessions", a.Handlers.SessionTest)
+	a.get("/", a.Handlers.Home)
+	a.get("/go-page", a.Handlers.GoPage)
+	a.get("/jet-page", a.Handlers.JetPage)
+	a.get("/sessions", a.Handlers.SessionTest)
 
-	a.App.Routes.Get("/users/login", a.Handlers.UserLogin)
-	a.App.Routes.Post("/users/login", a.Handlers.PostUserLogin)
-	a.App.Routes.Get("/users/logout", a.Handlers.Logout)
+	a.get("/users/login", a.Handlers.UserLogin)
+	a.post("/users/login", a.Handlers.PostUserLogin)
+	a.get("/users/logout", a.Handlers.Logout)
 
-	a.App.Routes.Get("/form", a.Handlers.Form)
-	a.App.Routes.Post("/form", a.Handlers.PostForm)
+	a.get("/form", a.Handlers.Form)
+	a.post("/form", a.Handlers.PostForm)
 
-	a.App.Routes.Get("/create-user", func(w http.ResponseWriter, r *http.Request) {
+	a.get("/create-user", func(w http.ResponseWriter, r *http.Request) {
 		u := data.User{
 			FirstName: "Jorge",
 			LastName:  "Sader",
@@ -49,7 +49,7 @@ func (a *application) routes() *chi.Mux {
 		fmt.Fprintf(w, "%d: %s", id, u.FirstName)
 	})
 
-	a.App.Routes.Get("/get-all-users", func(w http.ResponseWriter, r *http.Request) {
+	a.get("/get-all-users", func(w http.ResponseWriter, r *http.Request) {
 		users, err := a.Models.Users.GetAll()
 		if err != nil {
 			a.App.ErrorLog.Println(err)
@@ -61,7 +61,7 @@ func (a *application) routes() *chi.Mux {
 
 	})
 
-	a.App.Routes.Get("/get-user/{id}", func(w http.ResponseWriter, r *http.Request) {
+	a.get("/get-user/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 
 		user, err := a.Models.Users.Get(id)
@@ -73,7 +73,7 @@ func (a *application) routes() *chi.Mux {
 
 	})
 
-	a.App.Routes.Get("/update-user/{id}", func(w http.ResponseWriter, r *http.Request) {
+	a.get("/update-user/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, _ := strconv.Atoi(chi.URLParam(r, "id"))
 
 		user, err := a.Models.Users.Get(id)
@@ -90,28 +90,6 @@ func (a *application) routes() *chi.Mux {
 		validator := a.App.Validator(r) // r.Form ignored since we overwrite Data
 
 		user.Validate(validator)
-
-		//// Mock form data with some intentional failures
-		//validator.Data = url.Values{
-		//	"first_name": []string{"Jo"},          // Too short for Between 3, 50
-		//	"last_name":  []string{user.LastName}, // 11 chars, should pass 5-15
-		//	"email":      []string{"joe@shmoe"},   // Invalid email
-		//	"active":     []string{"1"},           // Invalid int
-		//	"created_at": []string{"01-13-2025"},  // Invalid date (month 13)
-		//	"username":   []string{"user name"},   // Has spaces
-		//}
-
-		//// Chain validation rules to test various scenarios
-		//validator.Required("first_name", "last_name", "email", "active", "created_at", "username").
-		//	Between("first_name", 3, 50, "First name must be 3-50 characters").
-		//	MinLength("last_name", 5, "Last name must be at least 5 characters").
-		//	MaxLength("last_name", 15, "Last name must be no more than 15 characters").
-		//	IsEmail("email", "Must be a valid email address").
-		//	IsInt("active", "Active must be an integer").
-		//	IsBoolean("active", "Active must be an boolean").
-		//	IsDate("created_at", "Invalid date format").
-		//	Contains("username", "@", "Username must contain @").
-		//	HasNoSpaces("username", "Username must not contain spaces")
 
 		// Output results
 		if !validator.Valid() {
