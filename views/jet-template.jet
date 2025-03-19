@@ -9,8 +9,8 @@
   <div class="col text-center">
       <div class="d-flex align-items-center justify-content-center" style="height: 100vh;">
           <div>
-              <a href="/"><img src="/public/images/celeritas.jpg" class="mb-5" style="width: 100px;height:auto;" alt="celeritas logo"></a>
-              <h1>Celeritas (Jet Templates)</h1>
+              <a href="/"><img src="/public/images/devify-sq-colorFont.png" class="mb-5" style="width: 100px;height:auto;" alt="devify logo"></a>
+              <h1>Devify (Jet Templates)</h1>
               <hr>
               <small class="text-muted">This page was built using Jet Templates</small>
           </div>
