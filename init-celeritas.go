@@ -1,14 +1,14 @@
 package main
 
 import (
-	"github.com/jorgeSader/celeritas-test-app/middleware"
+	"github.com/jorgeSader/devify-test-app/middleware"
 	"log"
 	"os"
 
-	"github.com/jorgeSader/celeritas-test-app/data"
-	"github.com/jorgeSader/celeritas-test-app/handlers"
+	"github.com/jorgeSader/devify-test-app/data"
+	"github.com/jorgeSader/devify-test-app/handlers"
 
-	"github.com/jorgeSader/celeritas"
+	"github.com/jorgeSader/devify"
 )
 
 func InitApplication() *application {
@@ -17,8 +17,8 @@ func InitApplication() *application {
 		log.Fatal(err)
 	}
 
-	// init celeritas
-	cel := &celeritas.Celeritas{}
+	// init devify
+	cel := &devify.Devify{}
 	err = cel.New(path)
 	if err != nil {
 		log.Fatal(err)

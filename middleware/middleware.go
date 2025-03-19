@@ -1,11 +1,11 @@
 package middleware
 
 import (
-	"github.com/jorgeSader/celeritas"
-	"github.com/jorgeSader/celeritas-test-app/data"
+	"github.com/jorgeSader/devify"
+	"github.com/jorgeSader/devify-test-app/data"
 )
 
 type Middleware struct {
-	App    *celeritas.Celeritas
+	App    *devify.Devify
 	Models data.Models
 }

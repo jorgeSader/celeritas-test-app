@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/jorgeSader/celeritas"
+	"github.com/jorgeSader/devify"
 	"github.com/upper/db/v4"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -29,7 +29,7 @@ func (u *User) Table() string {
 	return "users"
 }
 
-func (u *User) Validate(validator *celeritas.Validation) {
+func (u *User) Validate(validator *devify.Validation) {
 	validator.Required("first_name", "last_name", "email", "active").
 		Between("first_name", 3, 50, "First name must be 3-50 characters").
 		Between("last_name", 3, 10, "Last name must be 3-10 characters").

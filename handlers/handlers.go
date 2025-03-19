@@ -6,12 +6,12 @@ import (
 	"net/http"
 
 	"github.com/CloudyKit/jet/v6"
-	"github.com/jorgeSader/celeritas"
-	"github.com/jorgeSader/celeritas-test-app/data"
+	"github.com/jorgeSader/devify"
+	"github.com/jorgeSader/devify-test-app/data"
 )
 
 type Handlers struct {
-	App    *celeritas.Celeritas
+	App    *devify.Devify
 	Models data.Models
 }
 
@@ -88,7 +88,7 @@ func (h *Handlers) XML(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) DownloadFile(w http.ResponseWriter, r *http.Request) {
-	h.App.DownloadFile(w, r, "./public/images", "celeritas.jpg")
+	h.App.DownloadFile(w, r, "./public/images", "devify-sq-colorFont.png")
 }
 
 func (h *Handlers) TestCrypto(w http.ResponseWriter, r *http.Request) {

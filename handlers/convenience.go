@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/jorgeSader/celeritas"
+	"github.com/jorgeSader/devify"
 )
 
 // renderGo renders a Go template page.
@@ -108,9 +108,9 @@ func (h *Handlers) randomString(n int) string {
 // encrypt encrypts the given text using the handler's encryption key.
 // The parameter text is the plaintext to encrypt.
 // It returns the encrypted text as a base64-encoded string and an error if encryption fails.
-// It uses the celeritas.Encryption type with the handler's App.EncryptionKey.
+// It uses the devify.Encryption type with the handler's App.EncryptionKey.
 func (h *Handlers) encrypt(text string) (string, error) {
-	enc := celeritas.Encryption{Key: []byte(h.App.EncryptionKey)}
+	enc := devify.Encryption{Key: []byte(h.App.EncryptionKey)}
 
 	encrypted, err := enc.Encrypt(text)
 	if err != nil {
@@ -122,9 +122,9 @@ func (h *Handlers) encrypt(text string) (string, error) {
 // decrypt decrypts the given base64-encoded ciphertext using the handler's encryption key.
 // The parameter crypto is the encrypted text to decrypt.
 // It returns the decrypted plaintext string and an error if decryption fails.
-// It uses the celeritas.Encryption type with the handler's App.EncryptionKey.
+// It uses the devify.Encryption type with the handler's App.EncryptionKey.
 func (h *Handlers) decrypt(crypto string) (string, error) {
-	enc := celeritas.Encryption{Key: []byte(h.App.EncryptionKey)}
+	enc := devify.Encryption{Key: []byte(h.App.EncryptionKey)}
 
 	decrypted, err := enc.Decrypt(crypto)
 	if err != nil {

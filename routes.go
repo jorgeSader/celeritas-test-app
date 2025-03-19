@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/jorgeSader/celeritas-test-app/data"
+	"github.com/jorgeSader/devify-test-app/data"
 )
 
 func (a *application) routes() *chi.Mux {

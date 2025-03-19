@@ -1,8 +1,8 @@
-module github.com/jorgeSader/celeritas-test-app
+module github.com/jorgeSader/devify-test-app
 
 go 1.23.6
 
-replace github.com/jorgeSader/celeritas => ../celeritas
+replace github.com/jorgeSader/devify => ../devify
 
 require (
 	github.com/CloudyKit/jet/v6 v6.3.1
@@ -10,7 +10,7 @@ require (
 	github.com/docker/go-connections v0.5.0
 	github.com/go-chi/chi/v5 v5.2.1
 	github.com/jackc/pgx/v5 v5.7.2
-	github.com/jorgeSader/celeritas v0.0.0-20250315090039-1b0191cb631a
+	github.com/jorgeSader/devify v0.0.0-20250315090039-1b0191cb631a
 	github.com/testcontainers/testcontainers-go v0.35.0
 	github.com/upper/db/v4 v4.9.0
 	golang.org/x/crypto v0.36.0

@@ -1,4 +1,4 @@
-BINARY_NAME=celeritasApp
+BINARY_NAME=devifyApp
 BUILD_DIR=tmp
 
 .PHONY: help

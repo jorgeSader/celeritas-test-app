@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/CloudyKit/jet/v6"
-	"github.com/jorgeSader/celeritas-test-app/data"
+	"github.com/jorgeSader/devify-test-app/data"
 )
 
 func (h *Handlers) Form(w http.ResponseWriter, r *http.Request) {

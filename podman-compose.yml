@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: celeritas
+      POSTGRES_DB: devify
     ports:
       - '5432:5432'
     restart: unless-stopped
@@ -25,7 +25,7 @@ services:
     image: docker.io/library/mariadb:latest
     environment:
       MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: celeritas
+      MYSQL_DATABASE: devify
       MYSQL_USER: mariadb
       MYSQL_PASSWORD: password
     ports:
